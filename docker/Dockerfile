@@ -7,17 +7,16 @@ RUN sed -i 's#http://deb.debian.org#https://mirrors.aliyun.com#g' /etc/apt/sourc
 RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
-		procps \
+        procps \
         vim \
-		expect \
-		git \
+        expect \
+        git \
 	; \
 	rm -rf /var/lib/apt/lists/*
 
 COPY . /tmp/
 
-#ENV BITBUCKET_HOME=/opt/atlassian/bitbucket/6.10.5 \
-#    PATH=${PATH}:${BITBUCKET_HOME}/bin
+#RUN wget -O /tmp https://product-downloads.atlassian.com/software/stash/downloads/atlassian-bitbucket-6.10.5-x64.bin
 
 RUN chmod a+x /tmp/answer.sh \
  && /usr/bin/expect /tmp/answer.sh \
