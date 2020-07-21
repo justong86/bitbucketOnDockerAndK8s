@@ -1,0 +1,150 @@
+---
+# mysql-data-pv
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: bitbucket-mysql-data-pv
+  namespace: bitbucket
+  labels:
+    app: bitbucket 
+    deploy: mysql 
+    volume: data
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 500Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/pv/bitbucket/mysql/data
+---
+# mysql-logs-pv
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: bitbucket-mysql-logs-pv
+  namespace: bitbucket
+  labels:
+    app: bitbucket 
+    deploy: mysql 
+    volume: logs
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 50Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/pv/bitbucket/mysql/logs
+---
+# mysql-data-pvc
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bitbucket-mysql-data-pvc
+  namespace: bitbucket
+spec:
+  selector:
+    matchLabels:
+      app: bitbucket 
+      deploy: mysql 
+      volume: data
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+---
+# mysql-logs-pvc
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bitbucket-mysql-logs-pvc
+  namespace: bitbucket
+spec:
+  selector:
+    matchLabels:
+      app: bitbucket 
+      deploy: mysql 
+      volume: logs
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Mi
+---
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: bitbucket-mysql
+  namespace: bitbucket
+  labels:
+    app: bitbucket
+    deploy: mysql
+spec:
+  selector:
+    matchLabels:
+      app: bitbucket
+      deploy: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: bitbucket
+        deploy: mysql
+    spec:
+      containers:
+      - image: mysql:5.7
+        name: bitbucket-mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-root-pass
+              key: password
+        - name: MYSQL_USER
+          value: bitbucket
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-user-pass
+              key: password
+        - name: MYSQL_DATABASE
+          value: bitbucket
+        #args: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
+        args: ['--character-set-server=utf8', '--collation-server=utf8_bin']
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: bitbucket-mysql-data-volume
+          mountPath: /var/lib/mysql
+        - name: bitbucket-mysql-logs-volume
+          mountPath: /var/log/mysql
+      volumes:
+      - name: bitbucket-mysql-data-volume
+        persistentVolumeClaim:
+          claimName: bitbucket-mysql-data-pvc
+      - name: bitbucket-mysql-logs-volume
+        persistentVolumeClaim:
+          claimName: bitbucket-mysql-logs-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bitbucket-mysql
+  namespace: bitbucket
+  labels:
+    app: bitbucket
+    deploy: mysql
+spec:
+  selector:
+    app: bitbucket
+    deploy: mysql
+  ports:
+  - protocol: TCP
+    port: 3306
+    targetPort: 3306
